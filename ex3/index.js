@@ -202,7 +202,60 @@ User.prototype.hasOverdueBooks = function (days) {
         DateUtils.getDaysBetween(h.borrowDate, new Date()) > days);
 };
 
-// Część V: Klasa Library
+// Część VII: Klasa AsyncDatabase
+class AsyncDatabase {
+    constructor(delay = 500) {
+        this.delay = delay;
+        this.data = new Map();
+    }
+
+    save(key, value) {
+        return new Promise((resolve, reject) => {
+            const actualDelay = Math.random() < 0.1 ? this.delay * 2 : this.delay;
+            setTimeout(() => {
+                this.data.set(key, value);
+                resolve(value);
+            }, actualDelay);
+        });
+    }
+
+    get(key) {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve(this.data.has(key) ? this.data.get(key) : null);
+            }, this.delay);
+        });
+    }
+
+    delete(key) {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const result = this.data.delete(key);
+                resolve(result);
+            }, this.delay);
+        });
+    }
+
+    getAll() {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve(Array.from(this.data.values()));
+            }, this.delay);
+        });
+    }
+
+    clear() {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const count = this.data.size;
+                this.data.clear();
+                resolve(count);
+            }, this.delay);
+        });
+    }
+}
+
+// Część V: Klasa Library (z metodami async)
 class Library {
     constructor(name, maxBooksPerUser = 5) {
         this.name = name;
@@ -210,6 +263,7 @@ class Library {
         this.users = [];
         this.loans = [];
         this.maxBooksPerUser = maxBooksPerUser;
+        this.database = new AsyncDatabase();
     }
 
     get totalBooks() {
@@ -382,6 +436,246 @@ class Library {
         const stats = this.statistics;
         return `RAPORT: ${this.name}\nData: ${DateUtils.formatDate(new Date())}\n\nTytułów: ${stats.uniqueTitles}\nEgzemplarzy: ${stats.totalBooks}\nDostępne: ${stats.availableBooks}\nWypożyczone: ${stats.borrowedBooks}\nUżytkowników: ${stats.totalUsers}\nAktywne wypożyczenia: ${stats.activeLoans}`;
     }
+
+    // Część VIII: Metody asynchroniczne
+    async addBookAsync(bookData) {
+        const {
+            title,
+            author,
+            isbn,
+            publicationYear,
+            totalCopies = 1,
+            borrowedCopies = 0,
+            genre = "Inne"
+        } = bookData;
+
+        if (!Book.isValidBook({ isbn, publicationYear, totalCopies })) {
+            throw new Error('Nieprawidłowe dane książki');
+        }
+
+        const book = new Book(title, author, isbn, publicationYear, totalCopies, borrowedCopies, genre);
+        await this.database.save(`book_${isbn}`, book);
+        this.books.push(book);
+        return book;
+    }
+
+    async getBookAsync(isbn) {
+        const book = await this.database.get(`book_${isbn}`);
+        return book;
+    }
+
+    async removeBookAsync(isbn) {
+        const book = await this.getBookAsync(isbn);
+        if (!book) return false;
+
+        if (book.borrowedCopies > 0) {
+            throw new Error('Nie można usunąć wypożyczonej książki');
+        }
+
+        await this.database.delete(`book_${isbn}`);
+        const index = this.books.findIndex(b => b.isbn === isbn);
+        if (index > -1) this.books.splice(index, 1);
+        return true;
+    }
+
+    async registerUserAsync(userData) {
+        const { name, email, registrationDate = new Date() } = userData;
+
+        if (!Validator.isValidEmail(email)) {
+            throw new Error('Nieprawidłowy email');
+        }
+
+        const existingUser = await this.getUserAsync(email);
+        if (existingUser) {
+            throw new Error('Użytkownik już istnieje');
+        }
+
+        const user = new User(name, email, registrationDate);
+        await this.database.save(`user_${email}`, user);
+        this.users.push(user);
+        return user;
+    }
+
+    async getUserAsync(email) {
+        const user = await this.database.get(`user_${email}`);
+        return user;
+    }
+
+    async borrowBookAsync(userEmail, isbn) {
+        const [book, user] = await Promise.all([
+            this.getBookAsync(isbn),
+            this.getUserAsync(userEmail)
+        ]);
+
+        if (!user) throw new Error('Nie znaleziono użytkownika');
+        if (!book) throw new Error('Nie znaleziono książki');
+        if (!user.canBorrow) throw new Error('Limit wypożyczeń');
+        if (!book.isAvailable) throw new Error('Książka niedostępna');
+
+        book.borrow();
+        user.addBorrowedBook(isbn, book.title);
+
+        const loan = {
+            userEmail,
+            isbn,
+            bookTitle: book.title,
+            borrowDate: new Date(),
+            dueDate: DateUtils.addDays(new Date(), 30)
+        };
+
+        await Promise.all([
+            this.database.save(`book_${isbn}`, book),
+            this.database.save(`user_${userEmail}`, user),
+            this.database.save(`loan_${userEmail}_${isbn}`, loan)
+        ]);
+
+        this.loans.push(loan);
+        return loan;
+    }
+
+    async returnBookAsync(userEmail, isbn) {
+        const [book, user] = await Promise.all([
+            this.getBookAsync(isbn),
+            this.getUserAsync(userEmail)
+        ]);
+
+        if (!user || !book) throw new Error('Nie znaleziono');
+
+        book.return();
+        user.removeBorrowedBook(isbn);
+
+        await Promise.all([
+            this.database.save(`book_${isbn}`, book),
+            this.database.save(`user_${userEmail}`, user),
+            this.database.delete(`loan_${userEmail}_${isbn}`)
+        ]);
+
+        const loanIndex = this.loans.findIndex(l => l.userEmail === userEmail && l.isbn === isbn);
+        if (loanIndex > -1) this.loans.splice(loanIndex, 1);
+
+        return true;
+    }
+
+    // Część IX: Promise.all
+    async initializeLibraryAsync(booksData, usersData) {
+        const bookPromises = booksData.map(bookData => this.addBookAsync(bookData));
+        const userPromises = usersData.map(userData => this.registerUserAsync(userData));
+
+        const [books, users] = await Promise.all([
+            Promise.all(bookPromises),
+            Promise.all(userPromises)
+        ]);
+
+        return {
+            books,
+            users,
+            total: books.length + users.length
+        };
+    }
+
+    async getMultipleBooksAsync(isbns) {
+        const bookPromises = isbns.map(isbn => this.getBookAsync(isbn));
+        const books = await Promise.all(bookPromises);
+        return books.filter(book => book !== null);
+    }
+
+    async batchBorrowBooksAsync(userEmail, isbns) {
+        const borrowPromises = isbns.map(isbn => this.borrowBookAsync(userEmail, isbn));
+        return await Promise.all(borrowPromises);
+    }
+}
+
+// Część X: Promise.race
+function createTimeout(ms, errorMessage) {
+    return new Promise((resolve, reject) => {
+        setTimeout(() => reject(new Error(errorMessage)), ms);
+    });
+}
+
+async function searchWithTimeout(searchFunction, timeoutMs = 3000) {
+    return await Promise.race([
+        searchFunction(),
+        createTimeout(timeoutMs, 'Przekroczono limit czasu wyszukiwania')
+    ]);
+}
+
+async function getFastestResult(operations) {
+    return await Promise.race(operations);
+}
+
+// Część XI: Promise.any
+async function findBookAnywhere(isbn) {
+    const searchLocalStorage = () => {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve(null);
+            }, 800);
+        });
+    };
+
+    const searchDatabase = (db) => {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve(db.get(`book_${isbn}`));
+            }, 600);
+        });
+    };
+
+    const searchExternalAPI = () => {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                if (Math.random() > 0.5) {
+                    resolve(null);
+                } else {
+                    reject(new Error('API niedostępne'));
+                }
+            }, 1000);
+        });
+    };
+
+    try {
+        const book = await Promise.any([
+            searchLocalStorage().then(b => b ? { book: b, source: 'localStorage' } : Promise.reject()),
+            searchDatabase(new AsyncDatabase()).then(b => b ? { book: b, source: 'database' } : Promise.reject()),
+            searchExternalAPI().then(b => b ? { book: b, source: 'externalAPI' } : Promise.reject())
+        ]);
+        return book;
+    } catch {
+        return null;
+    }
+}
+
+async function verifyUserInMultipleSystems(email) {
+    const verifySystem1 = () => {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                Math.random() > 0.3 ? resolve(true) : reject(new Error('System 1 błąd'));
+            }, 500);
+        });
+    };
+
+    const verifySystem2 = () => {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                Math.random() > 0.3 ? resolve(true) : reject(new Error('System 2 błąd'));
+            }, 700);
+        });
+    };
+
+    const verifySystem3 = () => {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                Math.random() > 0.3 ? resolve(true) : reject(new Error('System 3 błąd'));
+            }, 600);
+        });
+    };
+
+    try {
+        await Promise.any([verifySystem1(), verifySystem2(), verifySystem3()]);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 // Część VI: Funkcje pomocnicze
@@ -453,33 +747,80 @@ function calculateStatistics(books, users, loans) {
 }
 
 // Przykład użycia
-const library = new Library("Biblioteka Miejska");
+async function demonstrateLibrarySystem() {
+    console.log('=== DEMO SYSTEMU BIBLIOTEKI ===\n');
 
-// Dodawanie książek
-library.addBook({
-    title: "Wiedźmin",
-    author: "Andrzej Sapkowski",
-    isbn: "9788375780635",
-    publicationYear: 1990,
-    totalCopies: 3,
-    genre: "Fantasy"
-});
+    const library = new Library("Biblioteka Miejska");
 
-library.addBook({
-    title: "Pan Tadeusz",
-    author: "Adam Mickiewicz",
-    isbn: "9788328700826",
-    publicationYear: 1834,
-    totalCopies: 2,
-    genre: "Poezja"
-});
+    // Test operacji synchronicznych
+    console.log('1. Dodawanie książek (synchroniczne)');
+    library.addBook({
+        title: "Wiedźmin",
+        author: "Andrzej Sapkowski",
+        isbn: "9788375780635",
+        publicationYear: 1990,
+        totalCopies: 3,
+        genre: "Fantasy"
+    });
 
-// Rejestracja użytkowników
-library.registerUser({ name: "Jan Kowalski", email: "jan@example.com" });
-library.registerUser({ name: "Anna Nowak", email: "anna@example.com" });
+    library.addBook({
+        title: "Pan Tadeusz",
+        author: "Adam Mickiewicz",
+        isbn: "9788328700826",
+        publicationYear: 1834,
+        totalCopies: 2,
+        genre: "Poezja"
+    });
 
-// Wypożyczenie książki
-library.borrowBook("jan@example.com", "9788375780635");
+    console.log(library.generateReport());
 
-console.log(library.generateReport());
-console.log("\nStatystyki:", calculateStatistics(library.books, library.users, library.loans));
+    // Test operacji asynchronicznych
+    console.log('\n\n2. Inicjalizacja asynchroniczna');
+    const booksData = [
+        { title: "Hobbit", author: "J.R.R. Tolkien", isbn: "9788324631766", publicationYear: 1937, totalCopies: 5, genre: "Fantasy" },
+        { title: "1984", author: "George Orwell", isbn: "9788328700123", publicationYear: 1949, totalCopies: 3, genre: "Dystopia" }
+    ];
+
+    const usersData = [
+        { name: "Jan Kowalski", email: "jan@example.com" },
+        { name: "Anna Nowak", email: "anna@example.com" }
+    ];
+
+    try {
+        const result = await library.initializeLibraryAsync(booksData, usersData);
+        console.log(`Dodano: ${result.books.length} książek, ${result.users.length} użytkowników`);
+
+        // Test wypożyczenia asynchronicznego
+        console.log('\n3. Wypożyczenie książki (async)');
+        const loan = await library.borrowBookAsync("jan@example.com", "9788324631766");
+        console.log(`Wypożyczono: ${loan.bookTitle} dla ${loan.userEmail}`);
+
+        // Test Promise.all - pobieranie wielu książek
+        console.log('\n4. Pobieranie wielu książek (Promise.all)');
+        const books = await library.getMultipleBooksAsync(["9788324631766", "9788328700123"]);
+        console.log(`Pobrano ${books.length} książek z bazy danych`);
+
+        // Test Promise.race - wyszukiwanie z timeout
+        console.log('\n5. Wyszukiwanie z timeoutem (Promise.race)');
+        const fastSearch = async () => {
+            return await library.getBookAsync("9788324631766");
+        };
+        const searchResult = await searchWithTimeout(fastSearch, 2000);
+        console.log(`Znaleziono: ${searchResult ? searchResult.title : 'Brak'}`);
+
+        // Test Promise.any - weryfikacja użytkownika
+        console.log('\n6. Weryfikacja użytkownika (Promise.any)');
+        const isVerified = await verifyUserInMultipleSystems("jan@example.com");
+        console.log(`Użytkownik zweryfikowany: ${isVerified}`);
+
+        console.log('\n\n=== RAPORT KOŃCOWY ===');
+        console.log(library.generateReport());
+        console.log("\nStatystyki:", calculateStatistics(library.books, library.users, library.loans));
+
+    } catch (error) {
+        console.error('Błąd:', error.message);
+    }
+}
+
+// Uruchom demo
+demonstrateLibrarySystem();
