@@ -1,4 +1,3 @@
-// Część I: Rozszerzenia prototypów
 String.prototype.reverse = function () {
     return this.split('').reverse().join('');
 }
@@ -33,7 +32,6 @@ Array.prototype.unique = function () {
     return [...new Set(this)];
 };
 
-// Część II: Klasy pomocnicze
 class DateUtils {
     static isLeapYear(year) {
         return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
@@ -67,7 +65,6 @@ class Validator {
     }
 }
 
-// Część III: Klasa Book
 class Book {
     constructor(title, author, isbn, publicationYear, totalCopies, borrowedCopies = 0, genre) {
         this.title = title;
@@ -138,7 +135,6 @@ class Book {
     }
 }
 
-// Część IV: Klasa User
 class User {
     constructor(name, email, registrationDate = new Date()) {
         this.name = name;
@@ -202,7 +198,6 @@ User.prototype.hasOverdueBooks = function (days) {
         DateUtils.getDaysBetween(h.borrowDate, new Date()) > days);
 };
 
-// Część VII: Klasa AsyncDatabase
 class AsyncDatabase {
     constructor(delay = 500) {
         this.delay = delay;
@@ -255,7 +250,6 @@ class AsyncDatabase {
     }
 }
 
-// Część V: Klasa Library (z metodami async)
 class Library {
     constructor(name, maxBooksPerUser = 5) {
         this.name = name;
@@ -437,7 +431,6 @@ class Library {
         return `RAPORT: ${this.name}\nData: ${DateUtils.formatDate(new Date())}\n\nTytułów: ${stats.uniqueTitles}\nEgzemplarzy: ${stats.totalBooks}\nDostępne: ${stats.availableBooks}\nWypożyczone: ${stats.borrowedBooks}\nUżytkowników: ${stats.totalUsers}\nAktywne wypożyczenia: ${stats.activeLoans}`;
     }
 
-    // Część VIII: Metody asynchroniczne
     async addBookAsync(bookData) {
         const {
             title,
@@ -556,7 +549,6 @@ class Library {
         return true;
     }
 
-    // Część IX: Promise.all
     async initializeLibraryAsync(booksData, usersData) {
         const bookPromises = booksData.map(bookData => this.addBookAsync(bookData));
         const userPromises = usersData.map(userData => this.registerUserAsync(userData));
@@ -585,7 +577,6 @@ class Library {
     }
 }
 
-// Część X: Promise.race
 function createTimeout(ms, errorMessage) {
     return new Promise((resolve, reject) => {
         setTimeout(() => reject(new Error(errorMessage)), ms);
@@ -603,7 +594,6 @@ async function getFastestResult(operations) {
     return await Promise.race(operations);
 }
 
-// Część XI: Promise.any
 async function findBookAnywhere(isbn) {
     const searchLocalStorage = () => {
         return new Promise((resolve) => {
@@ -678,7 +668,6 @@ async function verifyUserInMultipleSystems(email) {
     }
 }
 
-// Część VI: Funkcje pomocnicze
 function swapElements([el1, el2]) {
     return [el2, el1];
 }
@@ -737,7 +726,7 @@ function calculateStatistics(books, users, loans) {
     const genreEntries = Object.entries(genres);
     return {
         totalBooks: books.reduce((sum, b) => sum + b.totalCopies, 0),
-        totalUsers: users.length,
+        totalxUsers: users.length,
         activeLoans: loans.length,
         averageBooksPerUser: users.length > 0 ?
             (users.reduce((sum, u) => sum + u.borrowCount, 0) / users.length).toFixed(2) : 0,
@@ -748,11 +737,8 @@ function calculateStatistics(books, users, loans) {
 
 // Przykład użycia
 async function demonstrateLibrarySystem() {
-    console.log('=== DEMO SYSTEMU BIBLIOTEKI ===\n');
-
     const library = new Library("Biblioteka Miejska");
 
-    // Test operacji synchronicznych
     console.log('1. Dodawanie książek (synchroniczne)');
     library.addBook({
         title: "Wiedźmin",
@@ -774,7 +760,6 @@ async function demonstrateLibrarySystem() {
 
     console.log(library.generateReport());
 
-    // Test operacji asynchronicznych
     console.log('\n\n2. Inicjalizacja asynchroniczna');
     const booksData = [
         { title: "Hobbit", author: "J.R.R. Tolkien", isbn: "9788324631766", publicationYear: 1937, totalCopies: 5, genre: "Fantasy" },
@@ -790,17 +775,14 @@ async function demonstrateLibrarySystem() {
         const result = await library.initializeLibraryAsync(booksData, usersData);
         console.log(`Dodano: ${result.books.length} książek, ${result.users.length} użytkowników`);
 
-        // Test wypożyczenia asynchronicznego
         console.log('\n3. Wypożyczenie książki (async)');
         const loan = await library.borrowBookAsync("jan@example.com", "9788324631766");
         console.log(`Wypożyczono: ${loan.bookTitle} dla ${loan.userEmail}`);
 
-        // Test Promise.all - pobieranie wielu książek
         console.log('\n4. Pobieranie wielu książek (Promise.all)');
         const books = await library.getMultipleBooksAsync(["9788324631766", "9788328700123"]);
         console.log(`Pobrano ${books.length} książek z bazy danych`);
 
-        // Test Promise.race - wyszukiwanie z timeout
         console.log('\n5. Wyszukiwanie z timeoutem (Promise.race)');
         const fastSearch = async () => {
             return await library.getBookAsync("9788324631766");
@@ -808,19 +790,14 @@ async function demonstrateLibrarySystem() {
         const searchResult = await searchWithTimeout(fastSearch, 2000);
         console.log(`Znaleziono: ${searchResult ? searchResult.title : 'Brak'}`);
 
-        // Test Promise.any - weryfikacja użytkownika
         console.log('\n6. Weryfikacja użytkownika (Promise.any)');
         const isVerified = await verifyUserInMultipleSystems("jan@example.com");
         console.log(`Użytkownik zweryfikowany: ${isVerified}`);
 
-        console.log('\n\n=== RAPORT KOŃCOWY ===');
         console.log(library.generateReport());
         console.log("\nStatystyki:", calculateStatistics(library.books, library.users, library.loans));
-
     } catch (error) {
         console.error('Błąd:', error.message);
     }
 }
-
-// Uruchom demo
 demonstrateLibrarySystem();
