@@ -1,0 +1,41 @@
+[
+  {
+    "name": "Jan Kowalski",
+    "email": "jan@email.com",
+    "registrationDate": "2025-10-27T17:17:57.634Z",
+    "borrowedBooks": [
+      "1234567890123"
+    ],
+    "borrowHistory": [
+      {
+        "isbn": "1234567890123",
+        "bookTitle": "Wiedźmin",
+        "borrowDate": "2025-10-27T17:17:57.635Z",
+        "returned": false
+      }
+    ]
+  },
+  {
+    "name": "Anna Nowak",
+    "email": "anna@email.com",
+    "registrationDate": "2025-10-27T17:17:57.634Z",
+    "borrowedBooks": [
+      "1234567890124"
+    ],
+    "borrowHistory": [
+      {
+        "isbn": "1234567890124",
+        "bookTitle": "1984",
+        "borrowDate": "2025-10-27T17:17:57.635Z",
+        "returned": false
+      }
+    ]
+  },
+  {
+    "name": "Piotr Wiśniewski",
+    "email": "piotr@email.com",
+    "registrationDate": "2025-10-27T17:17:57.634Z",
+    "borrowedBooks": [],
+    "borrowHistory": []
+  }
+]

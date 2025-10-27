@@ -1,0 +1,20 @@
+{
+  "name": "library-system-node",
+  "version": "1.0.0",
+  "description": "System zarządzania biblioteką z funkcjonalnościami Node.js",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node index.js"
+  },
+  "keywords": [
+    "library",
+    "nodejs",
+    "async",
+    "promises",
+    "events"
+  ],
+  "author": "",
+  "license": "ISC"
+}

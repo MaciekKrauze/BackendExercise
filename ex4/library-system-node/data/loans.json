@@ -1,0 +1,16 @@
+[
+  {
+    "userEmail": "jan@email.com",
+    "isbn": "1234567890123",
+    "bookTitle": "Wiedźmin",
+    "borrowDate": "2025-10-27T17:17:57.635Z",
+    "dueDate": "2025-11-26T17:17:57.635Z"
+  },
+  {
+    "userEmail": "anna@email.com",
+    "isbn": "1234567890124",
+    "bookTitle": "1984",
+    "borrowDate": "2025-10-27T17:17:57.635Z",
+    "dueDate": "2025-11-26T17:17:57.635Z"
+  }
+]
