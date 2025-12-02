@@ -53,25 +53,9 @@ function validateRequiredString(value) {
     return { valid: false, error: "value is null" };
 }
 
-function validateEmail(email) {
-    if (email != null){
-        if (!isNaN(email)) {
-            const re = /^[^\s@]+@[^\s@]+.[^\s@]+$/;
-            return re.test(email);
-        }
-    }
-    return false;
-}
-
-function validateMinimalStringLength (string) {
-    return string != null && string.length > 5;
-}
-
 module.exports =  {
     validateIsbn,
     validateYear,
     validatePositiveNumber,
-    validateRequiredString,
-    validateEmail,
-    validateMinimalStringLength
+    validateRequiredString
 }
