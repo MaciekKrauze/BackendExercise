@@ -29,4 +29,24 @@ function getCurrentUser(userId) {
     return userWithoutPassword;
 }
 
-function updatePreferences ()
+function updatePreferences (userId, preferences) {
+    const validThemes = ['light', 'dark'];
+    const validLanguages = ['en', 'pl'];
+    if (preferences.theme && !validThemes.includes(preferences.theme)) {
+        throw new Error(`Theme must be one of: ${validThemes.join(', ')}`);
+    }
+    if (preferences.language && !validLanguages.includes(preferences.language)) {
+        throw new Error(`Language must be one of: ${validLanguages.join(', ')}`);
+    }
+    const user = updateUser(userId, { preferences });
+    if (!user) throw new Error('User not found');
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+}
+
+module.exports = {
+    register,
+    login,
+    getCurrentUser,
+    updatePreferences
+};

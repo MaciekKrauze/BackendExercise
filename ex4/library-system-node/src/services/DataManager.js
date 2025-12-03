@@ -75,9 +75,8 @@ export class DataManager {
                 try {
                     await fs.unlink(path.join(this.dataFolder, file));
                     deletedCount++;
-                } catch (error) {
-                    // Plik nie istnieje
                 }
+                catch (error) {}
             }
 
             return deletedCount;

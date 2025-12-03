@@ -1,7 +1,7 @@
 [
   {
     "title": "Wiedźmin",
-    "author": "Andrzej Sapkowski",
+    "author": "Sapkowski",
     "isbn": "1234567890123",
     "publicationYear": 1990,
     "totalCopies": 3,
@@ -10,20 +10,11 @@
   },
   {
     "title": "1984",
-    "author": "George Orwell",
+    "author": "Orwell",
     "isbn": "1234567890124",
     "publicationYear": 1949,
     "totalCopies": 5,
-    "borrowedCopies": 1,
-    "genre": "Dystopia"
-  },
-  {
-    "title": "Hobbit",
-    "author": "J.R.R. Tolkien",
-    "isbn": "1234567890125",
-    "publicationYear": 1937,
-    "totalCopies": 4,
     "borrowedCopies": 0,
-    "genre": "Fantasy"
+    "genre": "Dystopia"
   }
 ]
